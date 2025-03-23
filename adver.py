@@ -52,18 +52,18 @@ def login_user(username, password):
     conn.close()
     return user
 
-def insert_data(upload_date, image_data):
+def insert_data(upload_date, file_data, file_type):
     try:
         conn = connect_db()
         cursor = conn.cursor()
-        query = "INSERT INTO advertisement (date, img) VALUES (%s, %s)"
-        cursor.execute(query, (upload_date, image_data))
+        query = "INSERT INTO advertisement (date, file_data, file_type) VALUES (%s, %s, %s)"
+        cursor.execute(query, (upload_date, file_data, file_type))
         conn.commit()
         cursor.close()
         conn.close()
-        st.success("Data successfully inserted into the database!")
+        st.success("File successfully inserted into the database!")
     except Exception as e:
-        st.error(f"Error inserting data: {e}")
+        st.error(f"Error inserting file: {e}")
 
 # Main app logic
 create_users_table()
@@ -97,15 +97,31 @@ if not st.session_state["logged_in"]:
             else:
                 st.error("Invalid username or password")
 else:
-    st.title("Upload Image with Date")
+    st.title("Upload Files with Date")
     date_selected = st.date_input("Select Date", date.today())
-    uploaded_file = st.file_uploader("Upload an Image", type=["jpg", "jpeg", "png"])
-    if uploaded_file is not None:
-        image_bytes = uploaded_file.read()
-        image_base64 = base64.b64encode(image_bytes).decode('utf-8')
-        st.image(uploaded_file, caption="Uploaded Image", use_column_width=True)
-        if st.button("Upload to Database"):
-            insert_data(date_selected, image_base64)
+    
+    st.subheader("Upload Advertisement Image/Video")
+    uploaded_ad_file = st.file_uploader("Upload an Image or Video", type=["jpg", "jpeg", "png", "mp4", "avi", "mov"])
+    if uploaded_ad_file is not None:
+        file_bytes = uploaded_ad_file.read()
+        file_base64 = base64.b64encode(file_bytes).decode('utf-8')
+        file_type = "video" if uploaded_ad_file.type.startswith("video/") else "image"
+        if file_type == "image":
+            st.image(uploaded_ad_file, caption="Uploaded Image", use_column_width=True)
+        else:
+            st.video(uploaded_ad_file)
+        if st.button("Upload Advertisement to Database"):
+            insert_data(date_selected, file_base64, file_type)
+    
+    st.subheader("Upload Payment Screenshot")
+    payment_screenshot = st.file_uploader("Upload Payment Screenshot", type=["jpg", "jpeg", "png"])
+    if payment_screenshot is not None:
+        payment_bytes = payment_screenshot.read()
+        payment_base64 = base64.b64encode(payment_bytes).decode('utf-8')
+        st.image(payment_screenshot, caption="Payment Screenshot", use_column_width=True)
+        if st.button("Upload Payment Screenshot to Database"):
+            insert_data(date_selected, payment_base64, "payment_screenshot")
+    
     if st.button("Logout"):
         st.session_state["logged_in"] = False
         st.session_state["username"] = ""
