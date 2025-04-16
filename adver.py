@@ -3,7 +3,7 @@ import mysql.connector
 from datetime import date
 import base64
 
-# Database Configuration
+# --- Database Configuration ---
 DB_CONFIG = {
     "host": "82.180.143.66",
     "user": "u263681140_students",
@@ -11,8 +11,32 @@ DB_CONFIG = {
     "database": "u263681140_students"
 }
 
+# --- Database Utilities ---
 def connect_db():
     return mysql.connector.connect(**DB_CONFIG)
+
+def insert_user(username, password):
+    try:
+        conn = connect_db()
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (username, password))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        st.success("Registration successful! Please login.")
+    except mysql.connector.errors.IntegrityError:
+        st.error("Username already exists.")
+    except Exception as e:
+        st.error(f"Error: {e}")
+
+def check_credentials(username, password):
+    conn = connect_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE username=%s AND password=%s", (username, password))
+    user = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    return user is not None
 
 def insert_data(upload_date, img_data, payment_data):
     try:
@@ -52,55 +76,42 @@ def delete_advertisement(ad_id):
     except Exception as e:
         st.error(f"Error deleting record: {e}")
 
-# Main app logic
+# --- Session State ---
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
     st.session_state["username"] = ""
 
+# --- Auth Pages ---
+menu = st.sidebar.selectbox("Menu", ["Login", "Register"])
+
 if not st.session_state["logged_in"]:
-    st.subheader("Login to Your Account")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type='password')
-    if st.button("Login"):
-        # For now, no password check – implement validation if needed
-        st.session_state["logged_in"] = True
-        st.session_state["username"] = username
-        st.rerun()
+    if menu == "Login":
+        st.subheader("Login to Your Account")
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        if st.button("Login"):
+            if check_credentials(username, password):
+                st.session_state["logged_in"] = True
+                st.session_state["username"] = username
+                st.success("Login successful!")
+                st.rerun()
+            else:
+                st.error("Invalid username or password.")
+    
+    elif menu == "Register":
+        st.subheader("Register New Account")
+        new_username = st.text_input("New Username")
+        new_password = st.text_input("New Password", type="password")
+        if st.button("Register"):
+            if new_username and new_password:
+                insert_user(new_username, new_password)
+            else:
+                st.error("Please enter both username and password.")
+
+# --- Main App ---
 else:
     st.title("Advertisement Management Panel")
 
-    tab1, tab2 = st.tabs(["Upload Advertisement", "Delete Advertisement"])
-
-    with tab1:
-        st.subheader("Upload Advertisement and Payment Screenshot")
-        date_selected = st.date_input("Select Date", date.today())
-        
-        uploaded_ad_file = st.file_uploader("Upload an Image or Video", type=["jpg", "jpeg", "png", "mp4", "avi", "mov"])
-        payment_screenshot = st.file_uploader("Upload Payment Screenshot", type=["jpg", "jpeg", "png"])
-        
-        if st.button("Submit"):
-            if uploaded_ad_file and payment_screenshot:
-                ad_bytes = uploaded_ad_file.read()
-                payment_bytes = payment_screenshot.read()
-                ad_base64 = base64.b64encode(ad_bytes).decode('utf-8')
-                payment_base64 = base64.b64encode(payment_bytes).decode('utf-8')
-                insert_data(date_selected, ad_base64, payment_base64)
-            else:
-                st.error("Please upload both advertisement and payment screenshot")
-
-    with tab2:
-        st.subheader("Delete Advertisement Entry")
-        ads = get_all_ads()
-        if ads:
-            ad_options = {f"ID: {ad[0]} | Date: {ad[1]}": ad[0] for ad in ads}
-            selected_ad = st.selectbox("Select Advertisement to Delete", list(ad_options.keys()))
-            if st.button("Delete Selected"):
-                ad_id = ad_options[selected_ad]
-                delete_advertisement(ad_id)
-        else:
-            st.info("No advertisements found.")
-
-    if st.button("Logout"):
-        st.session_state["logged_in"] = False
-        st.session_state["username"] = ""
-        st.rerun()
+    # Tabs: Only show Delete tab if admin
+    if st.session_state["username"] == "admin":
+        tab1, tab2 = st.tabs(["Upload Advertisement", "Delete Advertisement"])
