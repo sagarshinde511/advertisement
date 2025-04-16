@@ -19,7 +19,7 @@ def insert_user(username, password):
     try:
         conn = connect_db()
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (username, password))
+        cursor.execute("INSERT INTO Advusers (username, password) VALUES (%s, %s)", (username, password))
         conn.commit()
         cursor.close()
         conn.close()
