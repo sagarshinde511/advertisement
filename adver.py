@@ -32,7 +32,7 @@ def insert_user(username, password):
 def check_credentials(username, password):
     conn = connect_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM users WHERE username=%s AND password=%s", (username, password))
+    cursor.execute("SELECT * FROM Advusers WHERE username=%s AND password=%s", (username, password))
     user = cursor.fetchone()
     cursor.close()
     conn.close()
